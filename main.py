@@ -265,7 +265,7 @@ def create_inlinks_report(nlp_model, source_url_list, database_df, input_class):
 
     # results = list(map(target, source_url_list))
 
-    mp.set_start_method('fork', True)
+    mp.set_start_method('spawn', True)
 
     with mp.Pool(8) as p:
         results = p.map(target, source_url_list)
