@@ -14,6 +14,7 @@ Przetwarzanie:
 8. Zapisujemy
 """
 from functools import partial
+from itertools import chain
 
 import pandas as pd
 import numpy as np
@@ -186,16 +187,8 @@ def get_match_df_from_single_url(nlp_model, matchers, destination_url_list, inpu
             for match_id, start, end in found_matches:  # tuple unpacking - potrzebujemy tylko start oraz end
                 phrase = document[start:end]  # fraza pokrewna znaleziona w tekście
                 span = document[start - 5:end + 6]  # tworzenie kontekstu dla znalezionej frazy
-
-
-                # df = df.append(pd.Series([url, np.NaN, np.NaN, 'Nie', d_url, phrase.text, span.text],
-                #                          index=column_indexes), ignore_index=True)
-
-
-
-                # append_list_to_excel(filename='Output/Raport linkowania.xlsx',
-                #                      list_name=list_row,
-                #                      sheet_name='Raport')
+                df = df.append(pd.Series([url, np.NaN, np.NaN, 'Nie', d_url, phrase.text, span.text],
+                                         index=column_indexes), ignore_index=True)
             print(f">>>>>>>>>> Found {len(found_matches)} matches!")
         # Tutaj lock nie powinien wyrządzić dużej szkody.
         # lock
@@ -231,7 +224,7 @@ def create_inlinks_report(nlp_model, source_url_list, database_df, input_class):
     target = partial(get_match_df_from_single_url, nlp_model, matchers, destination_url_list, input_class)
 
     proc_num = mp.cpu_count() - 1
-    with mp.Pool(proc_num) as p:
+    with mp.Pool(10) as p:
         results = p.map(target, source_url_list)
 
     return results
@@ -242,12 +235,13 @@ if __name__ == '__main__':
     mo.start()
     prepare_output_sheet('Output/report.xlsx')
     lang_model = load_nlp_model("pl_core_news_sm")
-    url_list = load_url_list("Input/url_list3.txt")
+    url_list = load_url_list("Input/url_list.txt")
     df_phrases = prepare_input_phrases_with_lemmas(lang_model, "Input/Morele_ahrefs.xlsx")
 
-    create_inlinks_report(lang_model, url_list, df_phrases, input_class='single-news-container')
+    # TODO: input_class może się zmieniać w zależności od układu przeszukiwanych dokumentów html
+    df_results = create_inlinks_report(lang_model, url_list, df_phrases, input_class='single-news-container')
+    df = pd.concat(df_results)
+    append_df_to_excel(filename="Output/report.xlsx", df=df, sheet_name='Raport')
 
     mo.stop()
     mo.report()
-
-# TODO: Collect metrics and report them
